@@ -1,4 +1,7 @@
 import {
+	BindingOnChangeOptions,
+	BindingOnCreateOptions,
+	BindingOnShapeChangeOptions,
 	BindingOnUnbindOptions,
 	BindingUnbindReason,
 	BindingUtil,
@@ -19,8 +22,21 @@ const ids = {
 	box4: createShapeId('box4'),
 }
 
+const mockOnOperationComplete = jest.fn() as jest.Mock<void, []>
 const mockOnBeforeUnbind = jest.fn() as jest.Mock<void, [BindingOnUnbindOptions<TLUnknownBinding>]>
 const mockOnAfterUnbind = jest.fn() as jest.Mock<void, [BindingOnUnbindOptions<TLUnknownBinding>]>
+const mockOnBeforeCreate = jest.fn() as jest.Mock<void, [BindingOnCreateOptions<TLUnknownBinding>]>
+const mockOnAfterCreate = jest.fn() as jest.Mock<void, [BindingOnCreateOptions<TLUnknownBinding>]>
+const mockOnBeforeChange = jest.fn() as jest.Mock<void, [BindingOnChangeOptions<TLUnknownBinding>]>
+const mockOnAfterChange = jest.fn() as jest.Mock<void, [BindingOnChangeOptions<TLUnknownBinding>]>
+const mockOnAfterChangeFromShape = jest.fn() as jest.Mock<
+	void,
+	[BindingOnShapeChangeOptions<TLUnknownBinding>]
+>
+const mockOnAfterChangeToShape = jest.fn() as jest.Mock<
+	void,
+	[BindingOnShapeChangeOptions<TLUnknownBinding>]
+>
 
 class TestBindingUtil extends BindingUtil {
 	static override type = 'test'
@@ -31,12 +47,40 @@ class TestBindingUtil extends BindingUtil {
 		return {}
 	}
 
+	override onOperationComplete(): void {
+		mockOnOperationComplete()
+	}
+
 	override onBeforeUnbind(options: BindingOnUnbindOptions<TLUnknownBinding>): void {
 		mockOnBeforeUnbind(options)
 	}
 
 	override onAfterUnbind(options: BindingOnUnbindOptions<TLUnknownBinding>): void {
 		mockOnAfterUnbind(options)
+	}
+
+	override onBeforeCreate(options: BindingOnCreateOptions<TLUnknownBinding>): void {
+		mockOnBeforeCreate(options)
+	}
+
+	override onAfterCreate(options: BindingOnCreateOptions<TLUnknownBinding>): void {
+		mockOnAfterCreate(options)
+	}
+
+	override onBeforeChange(options: BindingOnChangeOptions<TLUnknownBinding>): void {
+		mockOnBeforeChange(options)
+	}
+
+	override onAfterChange(options: BindingOnChangeOptions<TLUnknownBinding>): void {
+		mockOnAfterChange(options)
+	}
+
+	override onAfterChangeFromShape(options: BindingOnShapeChangeOptions<TLUnknownBinding>): void {
+		mockOnAfterChangeFromShape(options)
+	}
+
+	override onAfterChangeToShape(options: BindingOnShapeChangeOptions<TLUnknownBinding>): void {
+		mockOnAfterChangeToShape(options)
 	}
 }
 
@@ -52,6 +96,12 @@ beforeEach(() => {
 
 	mockOnBeforeUnbind.mockClear()
 	mockOnAfterUnbind.mockClear()
+	mockOnBeforeCreate.mockClear()
+	mockOnAfterCreate.mockClear()
+	mockOnBeforeChange.mockClear()
+	mockOnAfterChange.mockClear()
+	mockOnAfterChangeFromShape.mockClear()
+	mockOnAfterChangeToShape.mockClear()
 })
 
 function bindShapes(fromId: TLShapeId, toId: TLShapeId) {
@@ -207,4 +257,100 @@ test('beforeUnbind is called before the to shape is deleted or the binding is de
 	editor.deleteShape(ids.box2)
 
 	expect.assertions(3)
+})
+
+describe('onOperationComplete', () => {
+	const calls = [] as string[]
+	beforeEach(() => {
+		calls.length = 0
+
+		mockOnOperationComplete.mockImplementation(() => {
+			calls.push('onOperationComplete')
+		})
+	})
+	it('is called once after onAfterCreate', () => {
+		mockOnAfterCreate.mockImplementation(() => {
+			calls.push('onAfterCreate')
+		})
+		bindShapes(ids.box1, ids.box2)
+		bindShapes(ids.box2, ids.box3)
+		expect(calls).toEqual([
+			'onAfterCreate',
+			'onOperationComplete',
+			'onAfterCreate',
+			'onOperationComplete',
+		])
+	})
+	it('is called once after onAfterChange', () => {
+		mockOnAfterChange.mockImplementation(() => {
+			calls.push('onAfterChange')
+		})
+		const bindingAid = bindShapes(ids.box1, ids.box2)
+		const bindingBid = bindShapes(ids.box2, ids.box3)
+		calls.length = 0
+
+		editor.updateBindings([
+			{
+				id: bindingAid,
+				type: 'test',
+				meta: { foo: 'bar' },
+			},
+			{
+				id: bindingBid,
+				type: 'test',
+				meta: { foo: 'baz' },
+			},
+		])
+
+		expect(calls).toEqual(['onAfterChange', 'onAfterChange', 'onOperationComplete'])
+	})
+	it('is called once after onAfterFromShapeChange and onAfterToShapeChange', () => {
+		mockOnAfterChangeFromShape.mockImplementation(() => {
+			calls.push('onAfterChangeFromShape')
+		})
+		mockOnAfterChangeToShape.mockImplementation(() => {
+			calls.push('onAfterChangeToShape')
+		})
+		bindShapes(ids.box1, ids.box2)
+		bindShapes(ids.box2, ids.box3)
+		calls.length = 0
+
+		editor.updateShapes([
+			{
+				id: ids.box1,
+				type: 'geo',
+				x: 10,
+			},
+			{
+				id: ids.box2,
+				type: 'geo',
+				x: 20,
+			},
+			{
+				id: ids.box3,
+				type: 'geo',
+				x: 30,
+			},
+		])
+
+		expect(calls).toEqual([
+			'onAfterChangeFromShape',
+			'onAfterChangeToShape',
+			'onAfterChangeFromShape',
+			'onAfterChangeToShape',
+			'onOperationComplete',
+		])
+	})
+	it('is called once after onAfterUnbind', () => {
+		mockOnAfterUnbind.mockImplementation(() => {
+			calls.push('onAfterUnbind')
+		})
+		const bindingAid = bindShapes(ids.box1, ids.box2)
+		const bindingBid = bindShapes(ids.box2, ids.box3)
+		calls.length = 0
+
+		editor.deleteBindings([bindingAid, bindingBid])
+
+		expect(calls).toEqual(['onAfterUnbind', 'onAfterUnbind', 'onOperationComplete'])
+	})
 })

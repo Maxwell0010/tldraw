@@ -384,20 +384,20 @@ export class Editor extends EventEmitter<TLEventMap> {
 					}
 				}
 
+				if (deletedBindings.size) {
+					const t = deletedBindings
+					deletedBindings = new Map()
+					for (const opts of t.values()) {
+						this.getBindingUtil(opts.binding).onAfterUnbind?.(opts)
+					}
+				}
+
 				if (invalidBindingTypes.size) {
 					const t = invalidBindingTypes
 					invalidBindingTypes = new Set()
 					for (const type of t) {
 						const util = this.getBindingUtil(type)
 						util.onOperationComplete?.()
-					}
-				}
-
-				if (deletedBindings.size) {
-					const t = deletedBindings
-					deletedBindings = new Map()
-					for (const opts of t.values()) {
-						this.getBindingUtil(opts.binding).onAfterUnbind?.(opts)
 					}
 				}
 
