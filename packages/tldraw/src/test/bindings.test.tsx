@@ -354,3 +354,97 @@ describe('onOperationComplete', () => {
 		expect(calls).toEqual(['onAfterUnbind', 'onAfterUnbind', 'onOperationComplete'])
 	})
 })
+
+test('onBeforeCreate is called before the binding is created', () => {
+	mockOnBeforeCreate.mockImplementationOnce(() => {
+		expect(editor.getBindingsFromShape(ids.box1, 'test')).toHaveLength(0)
+	})
+	bindShapes(ids.box1, ids.box2)
+	expect(editor.getBindingsFromShape(ids.box1, 'test')).toHaveLength(1)
+})
+
+test('onAfterCreate is called after the binding is created', () => {
+	mockOnAfterCreate.mockImplementationOnce(() => {
+		expect(editor.getBindingsFromShape(ids.box1, 'test')).toHaveLength(1)
+	})
+	bindShapes(ids.box1, ids.box2)
+	expect(editor.getBindingsFromShape(ids.box1, 'test')).toHaveLength(1)
+	expect.assertions(2)
+})
+
+test('onBeforeChange is called before the binding is updated', () => {
+	const bindingId = bindShapes(ids.box1, ids.box2)
+	mockOnBeforeChange.mockImplementationOnce(() => {
+		expect(editor.getBinding(bindingId)?.meta).toEqual({})
+	})
+	editor.updateBindings([
+		{
+			id: bindingId,
+			type: 'test',
+			meta: { foo: 'bar' },
+		},
+	])
+	expect(editor.getBinding(bindingId)?.meta).toEqual({ foo: 'bar' })
+	expect.assertions(2)
+})
+
+test('onAfterChange is called after the binding is updated', () => {
+	const bindingId = bindShapes(ids.box1, ids.box2)
+	expect(editor.getBinding(bindingId)?.meta).toEqual({})
+	mockOnAfterChange.mockImplementationOnce(() => {
+		expect(editor.getBinding(bindingId)?.meta).toEqual({ foo: 'bar' })
+	})
+	editor.updateBindings([
+		{
+			id: bindingId,
+			type: 'test',
+			meta: { foo: 'bar' },
+		},
+	])
+	expect(editor.getBinding(bindingId)?.meta).toEqual({ foo: 'bar' })
+	expect.assertions(3)
+})
+
+test('onAfterChangeFromShape is called after the from shape is updated', () => {
+	bindShapes(ids.box1, ids.box2)
+
+	expect(editor.getShape(ids.box1)?.meta).toEqual({})
+	mockOnAfterChangeFromShape.mockImplementationOnce(() => {
+		expect(editor.getShape(ids.box1)?.meta).toEqual({
+			foo: 'bar',
+		})
+	})
+	editor.updateShapes([
+		{
+			id: ids.box1,
+			type: 'geo',
+			meta: { foo: 'bar' },
+		},
+	])
+	expect(editor.getShape(ids.box1)?.meta).toEqual({
+		foo: 'bar',
+	})
+	expect.assertions(3)
+})
+
+test('onAfterChangeToShape is called after the to shape is updated', () => {
+	bindShapes(ids.box1, ids.box2)
+
+	expect(editor.getShape(ids.box2)?.meta).toEqual({})
+	mockOnAfterChangeToShape.mockImplementationOnce(() => {
+		expect(editor.getShape(ids.box2)?.meta).toEqual({
+			foo: 'bar',
+		})
+	})
+	editor.updateShapes([
+		{
+			id: ids.box2,
+			type: 'geo',
+			meta: { foo: 'bar' },
+		},
+	])
+	expect(editor.getShape(ids.box2)?.meta).toEqual({
+		foo: 'bar',
+	})
+	expect.assertions(3)
+})
